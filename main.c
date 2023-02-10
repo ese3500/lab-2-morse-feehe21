@@ -303,5 +303,10 @@ ISR(TIMER1_OVF_vect) {
 int main(void)
 {
 	Initialize();
-	while (1);
+	while (1) {
+		long timeChange = TCNT1 - lastPress + (numOverflows * 65536);
+		if (timeChange > 25000 && (PINB & (1<<PINB0))) {
+			printLetter();
+		}
+	}
 }
