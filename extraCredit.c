@@ -42,14 +42,14 @@ void dash() {
 	sprintf(String, "-");
 	UART_putstring(String);
 	PORTB |= (1<<PORTB1); // set LED to high
-	_delay_ms(5000);
+	_delay_ms(7000);
 	PORTB &= ~(1<<PORTB1); // set LED to low
 	_delay_ms(2000);
 }
 void space() {
 	sprintf(String, " ");
 	UART_putstring(String);
-	_delay_ms(5000);
+	_delay_ms(10000);
 }
 
 void flashLetter(char c) {
@@ -205,7 +205,7 @@ int main(void)
 			i++;
 			space();
 		} else {
-			_delay_ms(10000);
+			_delay_ms(70000);
 			i = 0;
 		}
 	}
