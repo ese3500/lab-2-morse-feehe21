@@ -1,5 +1,7 @@
 # lab2_morse
 Notes: 
+
+
 I prescaled by a factor of 1024
 
 the dds array stores 5 dots(1)/dashes(2) and i tracks the next index to be filled in this array
