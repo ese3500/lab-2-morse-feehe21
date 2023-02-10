@@ -18,7 +18,6 @@
 #include <avr/interrupt.h>
 #include "inc/uart.h"
 
-char c = 0;
 int lastPress = 0;
 char numOverflows = 0;
 char String[25];
@@ -32,15 +31,15 @@ void Initialize() {
 	DDRB |= (1<<DDB5); //set to output pin
 	PORTB &= ~(1<<PORTB5); // set to low
 	
-	//PB1 pin 9
+	//PB1 pin 9 - first LED setup in pin 9
 	DDRB |= (1<<DDB1); //set to output pin
 	PORTB &= ~(1<<PORTB1); // set to low
-	//PB2 - pin 10
+	//PB2 - pin 10 - second LED setup in pin 10
 	DDRB |= (1<<DDB2); //set to output pin
 	PORTB &= ~(1<<PORTB2); // set to low
 	
 	//PBO
-	DDRB &= ~(1<<DDB0); //set to input pin
+	DDRB &= ~(1<<DDB0); //set to input pin - pin 8
 	//PCICR |= (1<<PCIE0); //enable PCINT0 pin change interrupt
 	//PCMSK0 |= (1<<PCINT0); //enable trigger for PCINT0
 	
@@ -48,7 +47,7 @@ void Initialize() {
 	TCCR1B |= (1<<CS10);
 	TCCR1B |= (1<<CS12);
 	TCCR1B &= ~(1<<CS11);
-	//set prescaler to 1024
+	//sets prescaler to 1024
 	
 	//set timer 1 to normal
 	/*TCCR1A &= ~(1<<WGM10);
@@ -74,8 +73,9 @@ void Initialize() {
 	
 	sei();//enable global interrupts
 }
+//reads the dds array and prints out the corresponding letter, or NaL if its not a letter
 void printLetter() {
-	i = 0;
+	i = 0;//reset index
 	//check if empty
 	if (dds[0] == 0) {
 		return;
@@ -216,6 +216,7 @@ void printLetter() {
 		}
 	}
 	UART_putstring(String);
+	//clear array
 	dds[0] = 0;
 	dds[1] = 0;
 	dds[2] = 0;
@@ -224,65 +225,51 @@ void printLetter() {
 }
 
 ISR(TIMER1_CAPT_vect) {
-	 //sprintf(String,"Hello world! \n");
-	 //UART_putstring(String);
 	 
-	 
-	 //TIFR1 |= (1<<ICF1);
-	 //PORTB ^= (1<<PORTB5);
-	 if (!(PINB & (1<<PINB0))) { //press out
-		 PORTB |= (1<<PORTB5);
-		 int newPress = ICR1;//TCNT1
+	 if (!(PINB & (1<<PINB0))) { //press out i.e. the button is not pressed
+		 PORTB |= (1<<PORTB5); //onboard LED
+		 int newPress = ICR1;//a specific time of TCNT1 when the isr was triggered
 		 long timeChange = newPress - lastPress + (numOverflows * 65536);
 		 //sprintf(String, "time %lu", timeChange);
 		 //UART_putstring(String);
 		 //30 * 10^-3 * 16 * 10^6 / 1024 = 469
 		 //400 * 10^-3 * 16 * 10^6 / 1024 = 6250
-		 if (timeChange >= 469 && timeChange < 6250) {
+		 if (timeChange >= 469 && timeChange < 6250) { //DOT
 			 dds[i] = 1;
 			 i++;
-			 //print dot
 			 //sprintf(String, "Dot \n");
 			 //UART_putstring(String);
-			 PORTB |= (1<<PORTB1); // set LED to high
+			 PORTB |= (1<<PORTB1); // set dot (red) LED to high
 			 _delay_ms(50);
-			 PORTB &= ~(1<<PORTB1); // set to low
-		 }else if (timeChange >= 6250 /*&& timeChange < 12500*/) {
+			 PORTB &= ~(1<<PORTB1); // set dot LED to low
+		 }else if (timeChange >= 6250 /*&& timeChange < 12500*/) { //DASH
+			 // removed upper bound for demonstration ^
 			 dds[i] = 2;
 			 i++;
-			 //print dash
 			 //sprintf(String, "Dash \n");
 			 //UART_putstring(String);
-			 PORTB |= (1<<PORTB2); // set LED to high
+			 PORTB |= (1<<PORTB2); // set dash (white) LED to high
 			 _delay_ms(50);
-			 PORTB &= ~(1<<PORTB2); // set to low
+			 PORTB &= ~(1<<PORTB2); // set dash LED to low
 		 } else if (timeChange < 469) {
 			 //sprintf(String,"release less than time range \n");
-			 //sprintf(String,"release less than time range \n");
 			 //UART_putstring(String);
-			 /*sprintf(String,"numOverflows %u\n", numOverflows);
-			 UART_putstring(String);
-			 sprintf(String,"newPress %u\n", newPress);
-			 UART_putstring(String);
-			 sprintf(String,"oldPress %u\n", lastPress);
-			 UART_putstring(String);*/
 		 } else {
 			 //sprintf(String,"release above time range \n");
 			 //UART_putstring(String);
 		 }
-		 if (i > 5) {
+		 if (i > 5) { // no morse code encoding is more than 5 long, so we must be done with a letter
 			 printLetter();
 		 }
 		 lastPress = newPress;
 		 numOverflows = 0;
 	 } else { //press in
-		 PORTB &= ~(1<<PORTB5);
-		 int newPress = TCNT1;
+		 PORTB &= ~(1<<PORTB5); //onboard LED
+		 int newPress = ICR1;
 		 long timeChange = newPress - lastPress + (numOverflows * 65536);
 		 //sprintf(String, "time %lu", timeChange);
 		 //UART_putstring(String);
-		 if (timeChange > 25000) {//fix number to ticks
-			 //print space
+		 if (timeChange > 25000) {//SPACE
 			 //sprintf(String,"Space \n");
 			 //UART_putstring(String);
 			 printLetter();
@@ -296,6 +283,7 @@ ISR(TIMER1_CAPT_vect) {
 	 TCCR1B ^= (1<<ICES1);
 	 
 }
+//just catches timer overflows, not really needed though for reasonable times
 ISR(TIMER1_OVF_vect) {
 	numOverflows++;
 }
@@ -304,6 +292,7 @@ int main(void)
 {
 	Initialize();
 	while (1) {
+		//polling to see when a space must have happened by to print the letter before the next one starts
 		long timeChange = TCNT1 - lastPress + (numOverflows * 65536);
 		if (timeChange > 25000 && (PINB & (1<<PINB0))) {
 			printLetter();
